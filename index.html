@@ -1,1 +1,364 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vidhan Sabha: Maharashtra Political Simulator</title>
+    <style>
+        :root {
+            --primary: #FF9933; /* Saffron */
+            --secondary: #138808; /* Green */
+            --dark: #333333;
+            --light: #f4f4f9;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--dark);
+            color: var(--light);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background-color: #2a2a2a;
+            max-width: 800px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            color: var(--primary);
+            text-align: center;
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        /* Forms & Inputs */
+        label { display: block; margin: 15px 0 5px; font-weight: bold; }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #444;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #e68a00; }
+        button.action-btn { background-color: var(--secondary); margin-top: 10px;}
+        button.action-btn:hover { background-color: #0f6e06; }
+
+        /* Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #333;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        
+        /* Event Log */
+        .log-box {
+            background: #111;
+            height: 150px;
+            overflow-y: auto;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+        }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px dashed #333; padding-bottom: 5px; }
+        
+        .progress-bar {
+            background: #444;
+            border-radius: 5px;
+            height: 20px;
+            width: 100%;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: var(--secondary);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- SETUP SCREEN -->
+    <div id="setup-screen" class="screen active">
+        <h1>Vidhan Sabha Simulator</h1>
+        <p style="text-align:center;">Secure the mandate of Maharashtra before the elections!</p>
+        
+        <label for="playerName">Candidate Name:</label>
+        <input type="text" id="playerName" placeholder="Enter your name..." required>
+
+        <label for="partyChoice">Political Affiliation:</label>
+        <select id="partyChoice">
+            <option value="Maha Vikas Alliance">Maha Vikas Alliance (MVA)</option>
+            <option value="Saffron Coalition">Saffron Coalition (NDA)</option>
+            <option value="Regional Pride Party">Regional Pride Party (MNS style)</option>
+            <option value="Independent">Independent (No party backing)</option>
+        </select>
+
+        <label for="backgroundChoice">Background / Starting Level:</label>
+        <select id="backgroundChoice">
+            <option value="journalist">Journalist (High Popularity, Low Funds, Strong Media Influence)</option>
+            <option value="activist">Activist (Strong Grassroots, Moderate Funds, High Protest Impact)</option>
+            <option value="businessman">Businessman (Massive Funds, Low Initial Popularity, Corporate Ties)</option>
+            <option value="dynasty">Political Family (Balanced Funds & Popularity, High Expectations)</option>
+        </select>
+
+        <button onclick="startGame()">Start Campaign</button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="screen">
+        <h2 id="display-name">Candidate Dashboard</h2>
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div>Election Countdown:</div>
+                <div class="stat-value" id="turn-counter">Week 1 / 10</div>
+            </div>
+            <div class="stat-card">
+                <div>Campaign Funds:</div>
+                <div class="stat-value" id="funds-counter">₹0 Lakhs</div>
+            </div>
+            <div class="stat-card" style="grid-column: span 2;">
+                <div>Statewide Popularity / Vote Share:</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="popularity-bar"></div>
+                </div>
+                <div style="text-align:right; font-size: 12px; margin-top:5px;" id="popularity-text">0%</div>
+            </div>
+        </div>
+
+        <h3>Campaign Log</h3>
+        <div class="log-box" id="event-log"></div>
+
+        <h3>Actions</h3>
+        <div class="dashboard-grid">
+            <button class="action-btn" onclick="takeAction('rally')">Hold Rally in Vidarbha (Cost: ₹10L)</button>
+            <button class="action-btn" onclick="takeAction('media')">Mumbai Media Blitz (Cost: ₹25L)</button>
+            <button class="action-btn" onclick="takeAction('fundraise')">Fundraise via Corporate Ties</button>
+            <button class="action-btn" onclick="takeAction('alliance')">Negotiate Regional Alliance (Cost: ₹5L)</button>
+        </div>
+    </div>
+
+    <!-- END SCREEN -->
+    <div id="end-screen" class="screen">
+        <h1>Election Results</h1>
+        <div id="final-results" style="text-align: center; font-size: 18px; margin: 20px 0;"></div>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+</div>
+
+<script>
+    // Game State
+    let state = {
+        name: "",
+        party: "",
+        background: "",
+        funds: 0,
+        popularity: 0,
+        turn: 1,
+        maxTurns: 10
+    };
+
+    function logEvent(message) {
+        const logBox = document.getElementById('event-log');
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
+        entry.innerText = `> Week ${state.turn}: ${message}`;
+        logBox.prepend(entry);
+    }
+
+    function updateUI() {
+        document.getElementById('turn-counter').innerText = `Week ${state.turn} / ${state.maxTurns}`;
+        document.getElementById('funds-counter').innerText = `₹${state.funds} Lakhs`;
+        
+        // Cap popularity between 0 and 100
+        state.popularity = Math.max(0, Math.min(100, state.popularity));
+        
+        document.getElementById('popularity-bar').style.width = `${state.popularity}%`;
+        document.getElementById('popularity-text').innerText = `${state.popularity.toFixed(1)}%`;
+
+        if (state.turn > state.maxTurns) {
+            endGame();
+        }
+    }
+
+    function startGame() {
+        const nameInput = document.getElementById('playerName').value;
+        if (!nameInput) return alert("Please enter a name.");
+
+        state.name = nameInput;
+        state.party = document.getElementById('partyChoice').value;
+        state.background = document.getElementById('backgroundChoice').value;
+
+        // Apply starting stats based on background
+        switch (state.background) {
+            case 'journalist':
+                state.popularity = 25;
+                state.funds = 15;
+                break;
+            case 'activist':
+                state.popularity = 30;
+                state.funds = 10;
+                break;
+            case 'businessman':
+                state.popularity = 10;
+                state.funds = 100;
+                break;
+            case 'dynasty':
+                state.popularity = 20;
+                state.funds = 50;
+                break;
+        }
+
+        // Apply party modifiers
+        if (state.party === 'Independent') {
+            state.funds -= 5; 
+        } else {
+            state.popularity += 5; // Base party support
+        }
+
+        document.getElementById('display-name').innerText = `${state.name} (${state.party})`;
+        
+        document.getElementById('setup-screen').classList.remove('active');
+        document.getElementById('game-screen').classList.add('active');
+
+        logEvent("Campaign officially launched. The press is watching.");
+        updateUI();
+    }
+
+    function takeAction(actionType) {
+        if (state.turn > state.maxTurns) return;
+
+        let successRoll = Math.random();
+        let popGain = 0;
+        let fundChange = 0;
+
+        switch (actionType) {
+            case 'rally':
+                if (state.funds < 10) return alert("Insufficient funds for a rally!");
+                fundChange = -10;
+                if (successRoll > 0.3) {
+                    popGain = (Math.random() * 5) + 3; // 3 to 8
+                    logEvent(`Massive turnout in Nagpur! Gained ${popGain.toFixed(1)}% popularity.`);
+                } else {
+                    popGain = 1;
+                    logEvent(`Rally interrupted by unseasonal rains. Minimal impact.`);
+                }
+                break;
+
+            case 'media':
+                if (state.funds < 25) return alert("Insufficient funds for a media blitz!");
+                fundChange = -25;
+                if (successRoll > 0.2) {
+                    popGain = (Math.random() * 8) + 5; // 5 to 13
+                    logEvent(`Prime time debate success! Urban voters are impressed. Gained ${popGain.toFixed(1)}% popularity.`);
+                } else {
+                    popGain = -2;
+                    logEvent(`A controversial statement during a live interview sparked backlash. Lost 2% popularity.`);
+                }
+                break;
+
+            case 'fundraise':
+                if (successRoll > 0.4) {
+                    fundChange = Math.floor(Math.random() * 30) + 10; // 10 to 40 Lakhs
+                    popGain = -1; // Seen as corrupt/elite
+                    logEvent(`Sugar barons from Western Maharashtra backed you. Gained ₹${fundChange} Lakhs, but grassroot support dipped slightly.`);
+                } else {
+                    fundChange = 5;
+                    logEvent(`Minor donations received from local businessmen. Gained ₹5 Lakhs.`);
+                }
+                break;
+
+            case 'alliance':
+                if (state.funds < 5) return alert("You need funds to host alliance meetings!");
+                fundChange = -5;
+                if (successRoll > 0.5) {
+                    popGain = (Math.random() * 6) + 4;
+                    logEvent(`Successfully negotiated seat-sharing with local Marathwada leaders. Gained ${popGain.toFixed(1)}% popularity.`);
+                } else {
+                    popGain = 0;
+                    logEvent(`Alliance talks collapsed over seat disputes. Resources wasted.`);
+                }
+                break;
+        }
+
+        state.funds += fundChange;
+        state.popularity += popGain;
+        state.turn++;
+        
+        // Random State Events
+        triggerRandomEvent();
+        
+        updateUI();
+    }
+
+    function triggerRandomEvent() {
+        if (Math.random() > 0.7) {
+            const events = [
+                { msg: "Opponent launched a smear campaign! Lost 3% popularity.", pop: -3, funds: 0 },
+                { msg: "A local MLA defected to your camp! Gained 4% popularity.", pop: 4, funds: 0 },
+                { msg: "Election Commission seized illicit campaign cash in your district. Lost ₹15 Lakhs.", pop: 0, funds: -15 },
+                { msg: "Viral social media meme boosts your youth appeal! Gained 5% popularity.", pop: 5, funds: 0 }
+            ];
+            let ev = events[Math.floor(Math.random() * events.length)];
+            state.popularity += ev.pop;
+            state.funds = Math.max(0, state.funds + ev.funds); // Prevent negative funds from seizure
+            logEvent(`BREAKING: ${ev.msg}`);
+        }
+    }
+
+    function endGame() {
+        document.getElementById('game-screen').classList.remove('active');
+        document.getElementById('end-screen').classList.add('active');
+        
+        let resultText = "";
+        if (state.popularity >= 45) {
+            resultText = `<strong>Absolute Majority!</strong><br><br>With ${state.popularity.toFixed(1)}% of the vote share, ${state.name} of the ${state.party} is invited by the Governor to form the government in Maharashtra. You are the new Chief Minister!`;
+        } else if (state.popularity >= 30) {
+            resultText = `<strong>Hung Assembly!</strong><br><br>With ${state.popularity.toFixed(1)}% of the vote share, no party has a clear majority. You are a key player in 'Resort Politics' to form a coalition government.`;
+        } else {
+            resultText = `<strong>Defeat.</strong><br><br>With only ${state.popularity.toFixed(1)}% of the vote share, your campaign failed to resonate. You sit in the Opposition.`;
+        }
+        
+        document.getElementById('final-results').innerHTML = resultText;
+    }
+</script>
+
+</body>
+</html>
